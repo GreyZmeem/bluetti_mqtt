@@ -26,22 +26,8 @@ class CommandLineHandler:
             help='Scans for devices and prints out addresses')
         parser.add_argument(
             '--broker',
-            metavar='HOST',
-            dest='hostname',
-            help='The MQTT broker host to connect to')
-        parser.add_argument(
-            '--port',
-            default=1883,
-            type=int,
-            help='The MQTT broker port to connect to - defaults to %(default)s')
-        parser.add_argument(
-            '--username',
-            type=str,
-            help='The optional MQTT broker username')
-        parser.add_argument(
-            '--password',
-            type=str,
-            help='The optional MQTT broker password')
+            dest='broker',
+            help='The MQTT broker URL to connect to')
         parser.add_argument(
             '--interval',
             default=0,
@@ -66,7 +52,7 @@ class CommandLineHandler:
         args = parser.parse_args(self.argv)
         if args.scan:
             asyncio.run(scan_devices())
-        elif args.hostname and len(args.addresses) > 0:
+        elif args.broker and len(args.addresses) > 0:
             self.start(args)
         else:
             parser.print_help()
@@ -104,12 +90,9 @@ class CommandLineHandler:
 
         # Start MQTT client
         mqtt_client = MQTTClient(
+            broker=args.broker,
             bus=bus,
-            hostname=args.hostname,
             home_assistant_mode=args.ha_config,
-            port=args.port,
-            username=args.username,
-            password=args.password,
         )
         mqtt_task = loop.create_task(mqtt_client.run())
         self.background_tasks.add(mqtt_task)

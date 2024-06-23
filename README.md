@@ -14,20 +14,31 @@ $ pip install bluetti_mqtt
 
 ```shell
 $ bluetti-mqtt --scan Found AC3001234567890123: address 00:11:22:33:44:55
-$ bluetti-mqtt --broker [MQTT_BROKER_HOST] 00:11:22:33:44:55
+$ bluetti-mqtt --broker [MQTT_BROKER_URL] 00:11:22:33:44:55
 ```  
 
-If your MQTT broker has a username and password, you can pass those in. 
-  
-```shell  
-$ bluetti-mqtt --broker [MQTT_BROKER_HOST] --username username --password pass 00:11:22:33:44:55
-```
+Where `[MQTT_BROKER_URL]` is the URL of your MQTT broker:
+`scheme://<user>:<password>@<host>:<port>?option=value`
+
+Supported schemes are:
+
+- `mqtt` (port: `1883`)
+- `mqtts` (port: `8883`)
+- `ws` (port: `80`)
+- `wss` (port: `443`)
+
+Additional options that can be provided via the query string are:
+
+- `tls_insecure` (default: `false`) – disable hostname & certificate verification
+- `ca_certs` – path to a custom CA certificate file
+- `protocol` – MQTT protocol version. Valid values are `v31`, `v311`, and `v5`
+- `client_id` – client identifier
 
 By default, the device is polled as quickly as possible, but if you'd like to
 collect less data, the polling interval can be adjusted.  For example to pull every 60 seconds:
 
 ```shell  
-$ bluetti-mqtt --broker [MQTT_BROKER_HOST] --interval 60 00:11:22:33:44:55
+$ bluetti-mqtt --broker [MQTT_BROKER_URL] --interval 60 00:11:22:33:44:55
 ```
 
 If you have multiple devices within bluetooth range, you can monitor all of
@@ -36,7 +47,7 @@ you may notice some irregularity in the collected data, especially if you have
 not set an interval.   
    
 ```shell  
-$ bluetti-mqtt --broker [MQTT_BROKER_HOST] 00:11:22:33:44:55 00:11:22:33:44:66
+$ bluetti-mqtt --broker [MQTT_BROKER_URL] 00:11:22:33:44:55 00:11:22:33:44:66
 ```
 
 ## Background Service

@@ -1,14 +1,19 @@
 import asyncio
+import ssl
 from dataclasses import dataclass
 from enum import auto, Enum, unique
 import json
 import logging
 import re
-from typing import List, Optional
-from aiomqtt import Client, MqttError
-from paho.mqtt.client import MQTTMessage
-from bluetti_mqtt.bus import CommandMessage, EventBus, ParserMessage
-from bluetti_mqtt.core import BluettiDevice, DeviceCommand
+from typing import List, Optional, Any
+from urllib.parse import urlparse, parse_qsl
+
+import aiomqtt
+from aiomqtt import Client, MqttError, ProtocolVersion
+
+from .bus import CommandMessage, EventBus, ParserMessage
+from .core import BluettiDevice, DeviceCommand
+from .core.utils import str_to_bool
 
 
 @unique
@@ -491,31 +496,80 @@ class MQTTClient:
 
     def __init__(
         self,
+        broker: str,
         bus: EventBus,
-        hostname: str,
         home_assistant_mode: str,
-        port: int = 1883,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
     ):
         self.bus = bus
-        self.hostname = hostname
-        self.port = port
-        self.username = username
-        self.password = password
         self.home_assistant_mode = home_assistant_mode
         self.devices = []
+        self.mqtt_client_kwargs = self.parse_broker_url(broker)
+
+    @classmethod
+    def parse_broker_url(cls, broker: str) -> dict[str, Any]:
+        """
+        Parse MQTT broker URL into kwargs for `aiomqtt.Client`
+        """
+        url_parts = urlparse(broker)
+        query = dict(parse_qsl(url_parts.query, keep_blank_values=False, strict_parsing=True))
+
+        default_port: int
+        transport: str
+        match url_parts.scheme:
+            case 'mqtt':
+                default_port = 1883
+                transport = 'tcp'
+            case 'mqtts':
+                default_port = 8883
+                transport = 'tcp'
+            case 'ws':
+                default_port = 80
+                transport = 'websockets'
+            case 'wss':
+                default_port = 443
+                transport = 'websockets'
+            case _:
+                raise ValueError(f'Invalid scheme for MQTT broker URL: {url_parts.scheme}')
+
+        tls_context: ssl.SSLContext = ssl.create_default_context()
+        tls_context.verify_mode = ssl.CERT_REQUIRED
+        if tls_insecure := str_to_bool(query.get('tls_insecure', '')):
+            tls_context.check_hostname = False
+            tls_context.verify_mode = ssl.CERT_NONE
+        if ca_certs := query.get('ca_certs'):
+            tls_context.load_verify_locations(ca_certs)
+
+        protocol: ProtocolVersion | None
+        match query.get('protocol'):
+            case 'v31':
+                protocol = ProtocolVersion.V31
+            case 'v311':
+                protocol = ProtocolVersion.V311
+            case 'v5':
+                protocol = ProtocolVersion.V5
+            case None:
+                protocol = None
+            case _:
+                raise ValueError(f'Invalid protocol version: {query["protocol"]}')
+
+        return {
+            'hostname': url_parts.hostname,
+            'port': url_parts.port or default_port,
+            'username': url_parts.username,
+            'password': url_parts.password,
+            'identifier': query.get('client_id'),
+            'protocol': protocol,
+            'transport': transport,
+            'tls_context': tls_context,
+            'tls_insecure': tls_insecure,
+            'websocket_path': query.get('websockets_path'),
+        }
 
     async def run(self):
         while True:
             logging.info('Connecting to MQTT broker...')
             try:
-                async with Client(
-                    hostname=self.hostname,
-                    port=self.port,
-                    username=self.username,
-                    password=self.password
-                ) as client:
+                async with Client(**self.mqtt_client_kwargs) as client:
                     logging.info('Connected to MQTT broker')
 
                     # Connect to event bus
