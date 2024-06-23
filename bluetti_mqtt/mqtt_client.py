@@ -557,10 +557,10 @@ class MQTTClient:
         if self.home_assistant_mode == 'none':
             return
 
-        def payload(id: str, device: BluettiDevice, field: MqttFieldConfig) -> str:
-            ha_id = id if not field.id_override else field.id_override
+        def payload(prop: str, payload_field: MqttFieldConfig) -> str:
+            ha_id = prop if not payload_field.id_override else payload_field.id_override
             payload_dict = {
-                'state_topic': f'bluetti/state/{device.type}-{device.sn}/{id}',
+                'state_topic': f'bluetti/state/{device.type}-{device.sn}/{prop}',
                 'device': {
                     'identifiers': [
                         f'{device.sn}'
@@ -572,9 +572,9 @@ class MQTTClient:
                 'unique_id': f'{device.sn}_{ha_id}',
                 'object_id': f'{device.type}_{ha_id}',
             }
-            if field.setter:
-                payload_dict['command_topic'] = f'bluetti/command/{device.type}-{device.sn}/{id}'
-            payload_dict.update(field.home_assistant_extra)
+            if payload_field.setter:
+                payload_dict['command_topic'] = f'bluetti/command/{device.type}-{device.sn}/{prop}'
+            payload_dict.update(payload_field.home_assistant_extra)
 
             return json.dumps(payload_dict, separators=(',', ':'))
 
@@ -590,18 +590,21 @@ class MQTTClient:
 
             # Figure out Home Assistant type
             if field.type == MqttFieldType.NUMERIC:
-                type = 'number' if field.setter else 'sensor'
+                ha_type = 'number' if field.setter else 'sensor'
             elif field.type == MqttFieldType.BOOL:
-                type = 'switch' if field.setter else 'binary_sensor'
+                ha_type = 'switch' if field.setter else 'binary_sensor'
             elif field.type == MqttFieldType.ENUM:
-                type = 'select' if field.setter else 'sensor'
+                ha_type = 'select' if field.setter else 'sensor'
             elif field.type == MqttFieldType.BUTTON:
-                type = 'button'
+                ha_type = 'button'
+            else:
+                logging.warning(f'Unknown field type: {name=} {field.type=}')
+                continue
 
             # Publish config
             await client.publish(
-                f'homeassistant/{type}/{device.sn}_{name}/config',
-                payload=payload(name, device, field).encode(),
+                f'homeassistant/{ha_type}/{device.sn}_{name}/config',
+                payload=payload(name, field).encode(),
                 retain=True
             )
 
@@ -616,7 +619,7 @@ class MQTTClient:
                 # Publish config
                 await client.publish(
                     f'homeassistant/sensor/{device.sn}_{field.id_override}/config',
-                    payload=payload(f'pack_details{pack}', device, field).encode(),
+                    payload=payload(f'pack_details{pack}', field).encode(),
                     retain=True
                 )
 
@@ -625,7 +628,7 @@ class MQTTClient:
             for name, field in DC_INPUT_FIELDS.items():
                 await client.publish(
                     f'homeassistant/sensor/{device.sn}_{name}/config',
-                    payload=payload(name, device, field).encode(),
+                    payload=payload(name, field).encode(),
                     retain=True
                 )
 
