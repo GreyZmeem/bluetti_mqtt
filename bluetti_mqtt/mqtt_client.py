@@ -635,21 +635,21 @@ class MQTTClient:
         # Parse the mqtt_message.topic
         m = COMMAND_TOPIC_RE.match(mqtt_message.topic)
         if not m:
-            logging.warn(f'unknown command topic: {mqtt_message.topic}')
+            logging.warning(f'unknown command topic: {mqtt_message.topic}')
             return
 
         # Find the matching device for the command
         device = next((d for d in self.devices if d.type == m[1] and d.sn == m[2]), None)
         if not device:
-            logging.warn(f'unknown device: {m[1]} {m[2]}')
+            logging.warning(f'unknown device: {m[1]} {m[2]}')
             return
 
         # Check if the device supports setting this field
         if not device.has_field_setter(m[3]):
-            logging.warn(f'Received command for unknown topic: {m[3]} - {mqtt_message.topic}')
+            logging.warning(f'Received command for unknown topic: {m[3]} - {mqtt_message.topic}')
             return
 
-        cmd: DeviceCommand = None
+        cmd: DeviceCommand
         if m[3] in NORMAL_DEVICE_FIELDS:
             field = NORMAL_DEVICE_FIELDS[m[3]]
             if field.type == MqttFieldType.ENUM:
@@ -664,7 +664,7 @@ class MQTTClient:
             else:
                 raise AssertionError(f'unexpected enum type: {field.type}')
         else:
-            logging.warn(f'Received command for unhandled topic: {m[3]} - {mqtt_message.topic}')
+            logging.warning(f'Received command for unhandled topic: {m[3]} - {mqtt_message.topic}')
             return
 
         await self.bus.put(CommandMessage(device, cmd))
