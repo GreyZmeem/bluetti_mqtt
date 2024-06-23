@@ -6,10 +6,11 @@ import signal
 from typing import List
 import warnings
 import sys
-from bluetti_mqtt.bluetooth import scan_devices
-from bluetti_mqtt.bus import EventBus
-from bluetti_mqtt.device_handler import DeviceHandler
-from bluetti_mqtt.mqtt_client import MQTTClient
+
+from .bluetooth import scan_devices
+from .bus import EventBus
+from .device_handler import DeviceHandler
+from .mqtt_client import MQTTClient
 
 
 class CommandLineHandler:
