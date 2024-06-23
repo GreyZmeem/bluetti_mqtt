@@ -5,7 +5,7 @@ import json
 import logging
 import re
 from typing import List, Optional
-from asyncio_mqtt import Client, MqttError
+from aiomqtt import Client, MqttError
 from paho.mqtt.client import MQTTMessage
 from bluetti_mqtt.bus import CommandMessage, EventBus, ParserMessage
 from bluetti_mqtt.core import BluettiDevice, DeviceCommand
@@ -535,10 +535,11 @@ class MQTTClient:
         await self.message_queue.put(msg)
 
     async def _handle_commands(self, client: Client):
-        async with client.filtered_messages('bluetti/command/#') as messages:
-            await client.subscribe('bluetti/command/#')
-            async for mqtt_message in messages:
-                await self._handle_command(mqtt_message)
+        topic = 'bluetti/command/#'
+        await client.subscribe(topic)
+        async for message in client.messages:
+            if message.topic.matches(topic):
+                await self._handle_command(message)
 
     async def _handle_messages(self, client: Client):
         while True:
