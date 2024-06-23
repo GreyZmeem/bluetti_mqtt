@@ -63,7 +63,7 @@ class CommandLineHandler:
         if sys.platform == 'win32':
             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-        args = parser.parse_args()
+        args = parser.parse_args(self.argv)
         if args.scan:
             asyncio.run(scan_devices())
         elif args.hostname and len(args.addresses) > 0:
