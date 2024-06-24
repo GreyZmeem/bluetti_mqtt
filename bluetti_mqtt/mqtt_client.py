@@ -531,11 +531,14 @@ class MQTTClient:
             case _:
                 raise ValueError(f'Invalid scheme for MQTT broker URL: {url_parts.scheme}')
 
-        tls_context: ssl.SSLContext = ssl.create_default_context()
-        tls_context.verify_mode = ssl.CERT_REQUIRED
-        if tls_insecure := str_to_bool(query.get('tls_insecure', '')):
-            tls_context.check_hostname = False
-            tls_context.verify_mode = ssl.CERT_NONE
+        tls_context: ssl.SSLContext | None = None
+        tls_insecure: bool | None = None
+        if url_parts.scheme in {'mqtts', 'wss'}:
+            tls_context = ssl.create_default_context()
+            tls_context.verify_mode = ssl.CERT_REQUIRED
+            if tls_insecure := str_to_bool(query.get('tls_insecure', '')):
+                tls_context.check_hostname = False
+                tls_context.verify_mode = ssl.CERT_NONE
         if ca_certs := query.get('ca_certs'):
             tls_context.load_verify_locations(ca_certs)
 

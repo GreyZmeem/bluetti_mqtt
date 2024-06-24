@@ -15,6 +15,8 @@ from bluetti_mqtt.mqtt_client import MQTTClient
         'identifier': 'dev',
         'transport': 'tcp',
         'protocol': None,
+        'tls_context': None,
+        'tls_insecure': None,
     }),
     ('mqtts://example.net', {
         'port': 8883,
